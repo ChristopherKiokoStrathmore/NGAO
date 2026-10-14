@@ -3,6 +3,13 @@
 **One shield for farmers, herders and county health teams against flood, disease and drought.**
 GreenTech Hackathon 2026 (Strathmore × Oracle) · pitch **Fri 16 Oct 2026, 9:30 AM EAT**
 
+## Project Drive (data, log, resources)
+
+Shared files that do not belong in git are in the **[Project Drive](https://drive.google.com/drive/folders/1VJQPwxib2CEQu_WTUsWBQN0a7JrqlkSW)**:
+
+- **[Ngao_Project_Log.xlsx](https://docs.google.com/spreadsheets/d/1BKr4Egbvy1W_hNKxCQ8lbBRXN5_Gsqi2/edit)** — the project log
+- **Data** folder — Uasin Gishu, Garissa 2006, seed **SYNTHETIC** data, and scripts
+
 Ngao (*ngao* = shield) is an early-warning platform that tells farmers, herders and county teams
 **what to do**, days to weeks before floods, disease and drought strike. It runs on **Oracle Cloud**,
 reaches people on **any phone by SMS and USSD in Swahili**, and gives county officers **one map
