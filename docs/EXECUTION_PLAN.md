@@ -9,8 +9,9 @@ replays, present the rest as designed. **Scope freeze Wednesday night.**
 | **Dennis** | APIs, alert engine, Wasiliana SMS, reply reader, dryer router | `backend-dennis` |
 | **Trevor** | Data pipelines, GEE exports, OML4Py models, risk scoring | `data-modelling-trevor` |
 | **Louisa** | USSD menus and flows via Wasiliana, sessions | `ussd-louisa` |
+| **Esther** | Slides | `slides-esther` |
 
-Pitch slides and partner calls are still unassigned (`docs/pitch/`).
+Slides: Esther — Slides (`slides-esther`), in `docs/pitch/`. Partner calls are still unassigned.
 
 ```mermaid
 gantt
@@ -51,19 +52,19 @@ gantt
 | Evening | RVF rule + replay table | Page 10 demo controls skeleton | Thresholds, abstain, 48 h cooldown, weekly cap, templates | Session rows in `USSD_SESSIONS`; menu 3 ward status |
 | **EOD** | **Decide D1 (Django vs ORDS). Scope freeze. Confirm inbound SMS forwarding against docs.wasiliana.com.** | | | |
 
-Pitch (unassigned): call NCPB Eldoret, Uasin Gishu agri office, a coop, and 5–10 farmers; send a test SMS; start the slide outline.
+Partner calls (unassigned): call NCPB Eldoret, Uasin Gishu agri office, a coop, and 5–10 farmers; send a test SMS. Slides (Esther — Slides (`slides-esther`)): start the slide outline.
 
 ## Thursday 15 Oct
 | Time | Trevor | Chris | Dennis | Louisa |
 |---|---|---|---|---|
 | 07:00–11:00 | 2023 dryer simulation (with Dennis) | Dryer planner, scorecard, Garissa replay pages | Reply reader live + review queue; dryer router | USSD menu polish against the live callback |
 | 11:00–13:00 | Freeze thresholds (commit hash on slide) | Ask Ngao (if on track); APEX export → git | Router → booking SMS; delivery reports once field names are confirmed | Stay on the callback through the end-to-end run |
-| **14:00** | **All PRs merged to `main`** (`frontend-chris`, `backend-dennis`, `data-modelling-trevor`, `ussd-louisa`) | | | |
+| **14:00** | **All PRs merged to `main`** (`frontend-chris`, `backend-dennis`, `data-modelling-trevor`, `ussd-louisa`, `slides-esther`) | | | |
 | 14:00–15:30 | Three full end-to-end runs; fix only what breaks the demo (all) | | | |
 | **16:00** | **Submit** to ilabee@strathmore.edu: repo link, APEX app URL + demo login, description, ≤5-slide deck | | | |
 | Evening | Record backup video; two timed rehearsals ≤ 5 min; Thursday-night checklist | | | |
 
-Pitch (unassigned): deck v1, ≤200-word description, backup video script.
+Slides (Esther — Slides (`slides-esther`)): deck v1, ≤200-word description, backup video script. Partner calls stay unassigned.
 
 ## Friday 16 Oct
 Dry run at venue · test hotspot · phone charged · **9:30 AM pitch** · bring National ID.
@@ -115,6 +116,6 @@ Roles: driver, phone holder, narrator. If any step fails → switch to video; ne
 | Delivery-report field names unknown | Same check. Treat provider accept as enough for the demo if the report shape is still open | Dennis |
 | Dryer data unknown | Labelled placeholders (`DRYERS.is_placeholder='Y'`) | unassigned (pitch) |
 | USSD callback needs public URL | ngrok or the host from D2. Reply `CON`/`END` within ~10 s | Louisa |
-| Schema drift between branches | `db/` changes only via small PRs to `main` | all four |
+| Schema drift between branches | `db/` changes only via small PRs to `main` | all five |
 | ADB auto-stopped / region lacks a service | Open ADB daily; check region day one | Chris |
 | Venue Wi-Fi | Hotspot + backup video | unassigned (pitch) |
