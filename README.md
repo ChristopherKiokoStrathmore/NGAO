@@ -1,3 +1,14 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Ngao · MvuaSmart logo" width="140" />
+</p>
+
+<p align="center">
+  <img alt="Oracle APEX" src="https://img.shields.io/badge/Oracle-APEX-C74634?logo=oracle&logoColor=white" />
+  <img alt="Oracle Autonomous Database" src="https://img.shields.io/badge/Oracle-Autonomous%20Database-F80000?logo=oracle&logoColor=white" />
+  <img alt="Wasiliana" src="https://img.shields.io/badge/Wasiliana-SMS%2FUSSD-0B6E4F" />
+  <img alt="status: hackathon prototype" src="https://img.shields.io/badge/status-hackathon%20prototype-F5A623" />
+</p>
+
 # 🌧️ Ngao · MvuaSmart
 
 **One shield for farmers, herders and county health teams against flood, disease and drought.**
