@@ -1,6 +1,6 @@
 # Oracle APEX, Autonomous DB & Select AI: how we use them
 
-Owner: **Chris (role B)**. Branch `frontend-chris`. Account: Strathmore OCI tenancy user `christopherkioko`
+Owner: **Chris** (`frontend-chris`): APEX dashboard + PWA. Account: Strathmore OCI tenancy user `christopherkioko`
 (set up 13 Oct 2026, no credit card). **Check your home region on first sign-in**: Always Free
 resources are created in the home region, and OCI GenAI / Select AI provider availability depends on region.
 
@@ -24,7 +24,7 @@ flowchart LR
 1. OCI Console → **Oracle Database → Autonomous Database → Create** → *Always Free* ✔, workload *Transaction Processing* (or Data Warehouse), name `ngaodb`. Note the ADMIN password (never commit it).
 2. **Database Actions → Database Users → Create user `NGAO`**: enable *Web Access* (ORDS REST) and grant quota. Grant `DBMS_CLOUD`, `DBMS_CLOUD_AI` execute.
 3. Run [`db/schema.sql`](../db/schema.sql) as `NGAO` in **SQL Worksheet**.
-4. **APEX → Administration Services → Create Workspace** `NGAO` on existing schema `NGAO`; create workspace admin + developer accounts for Chris and Dennis.
+4. **APEX → Administration Services → Create Workspace** `NGAO` on existing schema `NGAO`; create the workspace admin and a developer account for Chris. Dennis and Trevor need SQL Worksheet access on schema `NGAO` for SMS tables and OML4Py. Louisa reaches subscribers through the USSD contract, not through APEX.
 5. Load ward boundaries (HDX, CC-BY) into `WARDS.boundary` (GeoJSON → `SDO_UTIL.FROM_GEOJSON`).
 6. Day-one check: **does OML4Py work on Always Free?** (OML Notebooks → `%python import oml`). If not, train in Python and load scores into `RISK_SCORES`.
 
@@ -42,8 +42,18 @@ flowchart LR
 | 8 | **Garissa 2006 RVF replay** | all | `V_RVF_REPLAY` | Date slider / animated map (fallback: static before/after) with first case 30 Nov, peak 24 Dec, vaccination 8 Jan 2007 |
 | 9 | **Ask Ngao** | officers | Select AI over `V_*` | Text area → `DBMS_CLOUD_AI.GENERATE`, show SQL + result, log question |
 | 10 | **Demo controls** (hidden) | ADMIN only | n/a | Buttons: Run morning scoring · Send alerts · Plan tomorrow's routes · Run replay · Reset demo → `PKG_DEMO` / REST §2.2 |
+| 11 | **Subscriber admin** | ADMIN | `SUBSCRIBERS` | Interactive report of subscribers with an editable `preferred_lang` (`sw` / `en`) |
 
 Pages 1–3 + 10 are needed for the live demo; 7–8 for the honest-replay story; 9 is **first on the cut list**.
+
+### Kiswahili / English toggle
+
+The dashboard has a **Kiswahili / English** toggle so officer-facing text is in Swahili or English, chosen by the user. Implement it in either of these ways:
+
+- a **translated application** (primary language plus a Kiswahili translation, switched from the navigation bar), or
+- a **session language item** (application item `APP_LANG` with values `sw` and `en`, set by a select list in the navigation bar; page text and labels follow that item).
+
+This toggle is the officer's UI language. It does not change a farmer's SMS language. That value is `SUBSCRIBERS.preferred_lang`, edited on the subscriber admin page (page 11).
 
 ## 3. Map region notes
 - APEX 23.1+ Map region supports polygon layers from SDO_GEOMETRY or GeoJSON columns. Use `V_WARD_RISK_MAP` with a `colour` column and set *Fill Color* = `&COLOUR.`.
