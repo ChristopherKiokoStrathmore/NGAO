@@ -1,7 +1,7 @@
 # API & Data Contract (frontend ↔ backend)
 
 This is the agreement that lets **Chris (APEX, `frontend-chris`)**, **Dennis (backend,
-`backend-dennis`)**, **Trevor (data, `data-modelling-trevor`)**, and **Louisa (USSD, `ussd-louisa`)**
+`backend-dennis`)**, **Trevor (data, `data-modelling-trevor`)**, **Louisa (USSD, `ussd-louisa`)**, and **Esther — Slides (`slides-esther`)**
 build in parallel. **Change it only by PR to `main`, and tag the owners whose folders the change touches.**
 
 ```mermaid
@@ -42,7 +42,7 @@ Four layers:
 
 | Table | Written when | Required columns |
 |---|---|---|
-| `SUBSCRIBERS` | USSD registration via §6, STOP | phone, ward_id, role, language, consent_at, status |
+| `SUBSCRIBERS` | USSD registration via §5, language choice, STOP, SMS `LUGHA`/`LANG` | phone, preferred_lang; ward_id, role, consent_at, status once registered |
 | `FARMS` / `HERDS` | Registration (optional detail) | subscriber_id, ward_id, crop/species |
 | `MESSAGES` | Every inbound SMS (IN) and every send/DLR update (OUT) | direction, channel, phone, body, provider_msg_id, status |
 | `REPORTS` | Reply reader / USSD menu 2 via §6 | message_id, ward_id, report_type, report_count, payload, ai_confidence, review_status |
@@ -155,7 +155,7 @@ The model must return **only** this JSON (validated server-side; anything else �
   "rain_reported": true, "moisture_pct": null, "language": "sw | en", "confidence": 0.92 }
 ```
 Rules: `confidence < 0.7` or `report_type = other` → `review_status = NEEDS_REVIEW`. Exact keywords
-(`STOP`, `1`, `NDIYO`, `RVF`) are handled **before** the AI call.
+(`STOP`, `1`, `NDIYO`, `RVF`, and `LUGHA` or `LANG` followed by `SW` or `EN`) are handled **before** the AI call. `language` in the JSON is `sw` or `en` (Swahili or English, chosen by the user).
 
 ## 3. Wasiliana (SMS and USSD)
 
@@ -172,6 +172,8 @@ Two callback surfaces, two owners:
 
 Wasiliana does not let us dial the user. We register a service code and a callback URL. On each hop Wasiliana **POSTs the session to that URL**. Louisa's service answers with **`text/plain`**, the body prefixed **`CON `** (session continues) or **`END `** (session ends), **within ~10 seconds**. No OCI GenAI call on this path.
 
+Examples when `preferred_lang` is `sw` (the same screens are sent in English when the user chose English):
+
 ```
 CON Chagua kata:
 1. Moiben
@@ -184,9 +186,7 @@ END Asante! Umesajiliwa.
 
 **Confirm exact request field names against Wasiliana docs ([docs.wasiliana.com](https://docs.wasiliana.com)).** The handler needs a session id, the subscriber phone number, and the text entered so far. Do not hard-code a guessed JSON or form body; isolate the parse in one adapter in `ussd/`.
 
-Menu tree (from the brief): `1 Jiandikishe` → role (1 Mkulima / 2 Mfugaji / 3 Wote) → county → ward →
-language → consent; `2 Ripoti` → 1 wet bags (count) / 2 sick-dead animals (type, count) / 3 flooding /
-4 water point dry / 5 other (ask them to send an SMS; Louisa does not send one); `3 Hali ya kata yangu`; `4 Lugha`.
+Screen text is in Swahili or English, chosen by the user. On a new number the first screen is the language prompt in §5; that choice is saved to `preferred_lang` before the menu below. Main menu: `1` Register / Jiandikishe → role (farmer / herder / both) → county → ward → consent; `2` Report / Ripoti → wet bags (count), sick or dead animals (type, count), flooding, water point dry, or other (ask them to send an SMS; Louisa does not send one); `3` Ward status / Hali ya kata yangu; `4` **Lugha / Language** (change `preferred_lang`, then continue in the new language).
 
 Registration, reports, ward status, and unsubscribe go through [§5](#5-ussd-to-backend-contract). Louisa writes only `USSD_SESSIONS`.
 
@@ -206,12 +206,12 @@ Response: `200` empty. Failures are logged; do not return 4xx/5xx to Wasiliana f
 
 **Inbound SMS forwarding is an open item.** Confirm with Wasiliana whether they POST inbound SMS to our callback, and **confirm exact field names against Wasiliana docs ([docs.wasiliana.com](https://docs.wasiliana.com))** before the reply reader depends on them.
 
-Intended backend path once that is confirmed: `POST /sms/inbound` → insert `MESSAGES` (`direction=IN`) → reply reader (§2.4). Processing may be async. The HTTP handler returns `200` immediately. Keywords `STOP`, `1`, `NDIYO`, and `RVF` are handled before any GenAI call. Until forwarding is confirmed, structured USSD menu 2 (via §5) is the path that does not depend on inbound SMS.
+Intended backend path once that is confirmed: `POST /sms/inbound` → insert `MESSAGES` (`direction=IN`) → reply reader (§2.4). Processing may be async. The HTTP handler returns `200` immediately. Keywords `STOP`, `1`, `NDIYO`, `RVF`, and `LUGHA` or `LANG` followed by `SW` or `EN` (§5) are handled before any GenAI call. Until forwarding is confirmed, structured USSD menu 2 (via §5) is the path that does not depend on inbound SMS.
 
 ## 4. Message templates
-Stored in `ALERT_TYPES.template_sw/en` with slots `{ward}`, `{day}`, `{confidence}`, `{point}`, `{time}`, `{fee}`.
-Example A1 (sw): `MvuaSmart: Siku 3 za jua zinatarajiwa kuanzia {day} katika kata yako (uhakika {confidence}%). Vuna mahindi sasa na uyakaushe. Jibu NDIYO ukivuna.`
-Keep to ≤ 2 SMS segments. Swahili must be checked by a native speaker.
+Alerts are rendered from `ALERT_TEMPLATE` using the subscriber's `preferred_lang` (Swahili or English, chosen by the user). The unique key is `(hazard, severity, lang)` with `lang` in (`sw`, `en`) and `body` `VARCHAR2(160)`. Slots: `{ward}`, `{day}`, `{confidence}`, `{point}`, `{time}`, `{fee}`.
+Example A1 (`lang` sw): `MvuaSmart: Siku 3 za jua zinatarajiwa kuanzia {day} katika kata yako (uhakika {confidence}%). Vuna mahindi sasa na uyakaushe. Jibu NDIYO ukivuna.`
+The English row for the same hazard and severity is the `lang` `en` body. Keep to ≤ 2 SMS segments (the column is 160 characters). Each language's copy must be checked by a native speaker.
 
 ## 5. USSD to backend contract
 
@@ -221,16 +221,35 @@ Louisa owns the Wasiliana callback, the menu state machine, and `USSD_SESSIONS`.
 
 The USSD reply to Wasiliana is still due within ~10 seconds, so these endpoints must answer in well under that (target under 2 seconds) and must not call OCI GenAI.
 
+Menus and SMS are in Swahili or English, chosen by the user (`SUBSCRIBERS.preferred_lang`: `sw` or `en`, default `sw`).
+
+**First session.** On a new number's first session, before any other menu, reply with exactly:
+
+```
+CON Chagua lugha / Choose language
+1. Kiswahili
+2. English
+```
+
+`1` saves `preferred_lang = 'sw'`. `2` saves `preferred_lang = 'en'`. Call `POST /ussd/language` (below) so the choice is stored before the next screen. Then show the main menu in that language.
+
+**Change it later.** The main menu includes **Lugha / Language**. Choosing it shows the same two options, writes the new `preferred_lang`, and continues in the new language.
+
+**SMS keywords.** An inbound SMS of `LUGHA` or `LANG` followed by `SW` or `EN` (case-insensitive; forms `LUGHA SW`, `LUGHA EN`, `LANG SW`, `LANG EN`) sets `preferred_lang` to `sw` or `en` and sends a confirmation in the new language (Kiswahili confirmation when the new value is `sw`, English confirmation when it is `en`). Do not change `preferred_lang` if the second token is missing. Handle these keywords before any GenAI call.
+
+**Alerts.** Outbound alerts are rendered from `ALERT_TEMPLATE` (`body` for the matching `hazard`, `severity`, and `lang` = the subscriber's `preferred_lang`). See §4.
+
 | Method | Path | Body | Effect |
 |---|---|---|---|
-| POST | `/ussd/register` | `{"phone":"+254712345678","ward_id":12,"role":"farmer","language":"sw","consent":true}` | MERGE `SUBSCRIBERS`. `201` `{"subscriber_id":44,"status":"ACTIVE"}` |
+| POST | `/ussd/language` | `{"phone":"+254712345678","preferred_lang":"sw"}` | Set `SUBSCRIBERS.preferred_lang` to `sw` or `en`. Create the subscriber row when the phone is new (phone + `preferred_lang` + `status`) so the choice is saved before registration finishes; registration fills role, ward, and consent. `200` `{"preferred_lang":"sw"}` |
+| POST | `/ussd/register` | `{"phone":"+254712345678","ward_id":12,"role":"farmer","preferred_lang":"sw","consent":true}` | MERGE `SUBSCRIBERS`, including `preferred_lang` (`sw` or `en`). `201` `{"subscriber_id":44,"status":"ACTIVE"}` |
 | POST | `/ussd/report` | `{"phone":"+254712345678","session_id":"s1","report_type":"wet_bags","count":20,"unit":"bags"}` | INSERT `REPORTS` with `source=USSD`, `review_status=AUTO_ACCEPTED` (a structured menu, not an AI parse). `201` `{"report_id":77}` |
-| GET | `/ussd/ward-status?phone=+254712345678` | — | Short Swahili line for menu 3 (today's decision for the subscriber's ward, or a sentence that says we have no score). `200` `{"text":"Kata ya Moiben: siku za jua, uhakika 75%."}` |
+| GET | `/ussd/ward-status?phone=+254712345678` | — | Short line in Swahili or English, chosen by the user, for menu 3 (today's decision for the subscriber's ward, or a sentence that says we have no score). `200` `{"text":"Kata ya Moiben: siku za jua, uhakika 75%."}` when `preferred_lang` is `sw` |
 | POST | `/ussd/unsubscribe` | `{"phone":"+254712345678"}` | `SUBSCRIBERS.status=STOPPED`. `200` `{"status":"STOPPED"}` |
 
 `report_type` uses the same set as §2.4. Menu 2 only sends types the menu collected (wet bags, sick or dead animals, flooding, water point dry). "Other" tells the farmer to send an SMS; it does not call `/ussd/report`.
 
-Errors use §2.1. A 4xx/5xx from these endpoints is Louisa's problem to turn into an `END` screen (`END Samahani, jaribu tena.`). She must not leave Wasiliana waiting.
+Errors use §2.1. A 4xx/5xx from these endpoints is Louisa's problem to turn into an `END` screen in Swahili or English, chosen by the user (for `sw`: `END Samahani, jaribu tena.`). She must not leave Wasiliana waiting.
 
 Session rows stay in `ussd/`: each hop upserts `USSD_SESSIONS` (`session_id`, `phone`, `last_text`, `updated_at`). Dennis may read that table; he does not advance the menu.
 
@@ -239,3 +258,4 @@ Session rows stay in `ussd/`: each hop upserts `USSD_SESSIONS` (`session_id`, `p
 |---|---|---|
 | v1-draft | 2026-10-14 | Initial contract |
 | v1-draft.2 | 2026-10-14 | Wasiliana replaces Africa's Talking. USSD service is `ussd/` (Louisa); §5 is the USSD to backend contract. Inbound SMS forwarding and delivery-report field names left open pending docs.wasiliana.com |
+| v1-draft.3 | 2026-10-14 | Language choice: `preferred_lang`, first-session prompt, main-menu Lugha / Language, SMS `LUGHA`/`LANG`, alerts rendered from `ALERT_TEMPLATE` |

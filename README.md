@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Ngao · MvuaSmart logo" width="140" />
+  <img src="assets/logo.png" alt="Ngao · MvuaSmart logo" width="320" />
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@ GreenTech Hackathon 2026 (Strathmore × Oracle) · pitch **Fri 16 Oct 2026, 9:30
 
 Ngao (*ngao* = shield) is an early-warning platform that tells farmers, herders and county teams
 **what to do**, days to weeks before floods, disease and drought strike. It runs on **Oracle Cloud**,
-reaches people on **any phone by SMS and USSD in Swahili**, and gives county officers **one map
+reaches people on **any phone by SMS and USSD in Swahili or English, chosen by the user**, and gives county officers **one map
 dashboard** built in **Oracle APEX** (also installable as a phone app, an APEX PWA).
 
 | Service | For | What it does |
@@ -26,10 +26,10 @@ dashboard** built in **Oracle APEX** (also installable as a phone app, an APEX P
 | **Ngao Afya** | County health teams, community health promoters | Cholera risk after floods, RVF human risk, aflatoxin food-safety risk |
 
 **What makes it different:** every alert carries **one action and a confidence**; the engine says
-**Act / Watch / Abstain** and stays silent when unsure; replies in Swahili are read by **OCI
+**Act / Watch / Abstain** and stays silent when unsure; replies in Swahili or English, chosen by the user, are read by **OCI
 Generative AI (extract only, never advise)**; a **public scorecard** grades every alert.
 
-**Friday demo:** farmer service *live* in **Uasin Gishu** (USSD register → SMS alert → Swahili reply →
+**Friday demo:** farmer service *live* in **Uasin Gishu** (USSD register → SMS alert → reply in Swahili or English, chosen by the user →
 dryer routed → booking SMS), then herder + health services through a **replay of the 2006 Rift
 Valley fever outbreak in Garissa**, on the shared dashboard.
 
@@ -105,8 +105,9 @@ flowchart LR
 | **Dennis** | **`backend-dennis`** | APIs, alert engine, Wasiliana SMS, reply reader, dryer router | `backend/` |
 | **Trevor** | **`data-modelling-trevor`** | Data pipelines, GEE exports, OML4Py models, risk scoring | `data/` |
 | **Louisa** | **`ussd-louisa`** | USSD menus and flows via Wasiliana, sessions | `ussd/` |
+| **Esther** | **`slides-esther`** | Slides | `docs/pitch/` |
 
-`db/` is shared. Change `db/schema.sql` in a small PR to `main` first, then merge `main` into your branch. Chris applies it in Autonomous DB. Pitch slides and partner calls (`docs/pitch/`) have no named owner yet.
+`db/` is shared. Change `db/schema.sql` in a small PR to `main` first, then merge `main` into your branch. Chris applies it in Autonomous DB. Slides: Esther — Slides (`slides-esther`), in `docs/pitch/`. Partner calls are still unassigned.
 
 ### Folder ownership
 
@@ -116,7 +117,8 @@ flowchart LR
 | `backend/` | Dennis | `backend-dennis` |
 | `ussd/` | Louisa | `ussd-louisa` |
 | `data/` | Trevor | `data-modelling-trevor` |
-| `db/` | Shared (small PR to `main`; Chris applies the schema) | all four review |
+| `docs/pitch/` | Esther | `slides-esther` |
+| `db/` | Shared (small PR to `main`; Chris applies the schema) | all five review |
 
 ### Branch workflow
 
@@ -127,6 +129,7 @@ gitGraph
   branch backend-dennis
   branch data-modelling-trevor
   branch ussd-louisa
+  branch slides-esther
   checkout frontend-chris
   commit id: "APEX export"
   checkout backend-dennis
@@ -135,11 +138,14 @@ gitGraph
   commit id: "models"
   checkout ussd-louisa
   commit id: "USSD menus"
+  checkout slides-esther
+  commit id: "slides"
   checkout main
   merge backend-dennis id: "PR backend"
   merge frontend-chris id: "PR frontend"
   merge data-modelling-trevor id: "PR data"
   merge ussd-louisa id: "PR ussd"
+  merge slides-esther id: "PR slides"
   commit id: "submission tag"
 ```
 
@@ -155,6 +161,7 @@ gitGraph
 MVUA-SMART/
 ├── README.md               ← you are here
 ├── docs/                   architecture, API contract, APEX guide, execution plan
+│   └── pitch/              Esther — Slides (`slides-esther`)
 ├── db/
 │   └── schema.sql          shared DDL: tables + views (source of truth)
 ├── frontend/               Chris · frontend-chris
@@ -194,7 +201,7 @@ For the demo every step is triggered **on cue** from the hidden APEX **Demo cont
 - [ ] Working app: **APEX workspace / app URL on Oracle Cloud** that judges can open (+ demo login)
 - [ ] Project description, **≤ 200 words**
 - [ ] Pitch deck, **≤ 5 slides**
-- [ ] `frontend-chris`, `backend-dennis`, `data-modelling-trevor`, and `ussd-louisa` merged into `main` by **2:00 PM**
+- [ ] `frontend-chris`, `backend-dennis`, `data-modelling-trevor`, `ussd-louisa`, and `slides-esther` merged into `main` by **2:00 PM**
 - [ ] Backup demo video (laptop + USB)
 - [ ] Friday 9:30 AM pitch at Strathmore. Bring **National ID**.
 

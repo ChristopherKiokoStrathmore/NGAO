@@ -42,8 +42,18 @@ flowchart LR
 | 8 | **Garissa 2006 RVF replay** | all | `V_RVF_REPLAY` | Date slider / animated map (fallback: static before/after) with first case 30 Nov, peak 24 Dec, vaccination 8 Jan 2007 |
 | 9 | **Ask Ngao** | officers | Select AI over `V_*` | Text area → `DBMS_CLOUD_AI.GENERATE`, show SQL + result, log question |
 | 10 | **Demo controls** (hidden) | ADMIN only | n/a | Buttons: Run morning scoring · Send alerts · Plan tomorrow's routes · Run replay · Reset demo → `PKG_DEMO` / REST §2.2 |
+| 11 | **Subscriber admin** | ADMIN | `SUBSCRIBERS` | Interactive report of subscribers with an editable `preferred_lang` (`sw` / `en`) |
 
 Pages 1–3 + 10 are needed for the live demo; 7–8 for the honest-replay story; 9 is **first on the cut list**.
+
+### Kiswahili / English toggle
+
+The dashboard has a **Kiswahili / English** toggle so officer-facing text is in Swahili or English, chosen by the user. Implement it in either of these ways:
+
+- a **translated application** (primary language plus a Kiswahili translation, switched from the navigation bar), or
+- a **session language item** (application item `APP_LANG` with values `sw` and `en`, set by a select list in the navigation bar; page text and labels follow that item).
+
+This toggle is the officer's UI language. It does not change a farmer's SMS language. That value is `SUBSCRIBERS.preferred_lang`, edited on the subscriber admin page (page 11).
 
 ## 3. Map region notes
 - APEX 23.1+ Map region supports polygon layers from SDO_GEOMETRY or GeoJSON columns. Use `V_WARD_RISK_MAP` with a `colour` column and set *Fill Color* = `&COLOUR.`.

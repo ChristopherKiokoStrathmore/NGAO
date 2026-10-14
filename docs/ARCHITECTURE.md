@@ -13,8 +13,9 @@
    [API_CONTRACT.md](API_CONTRACT.md).
 3. **Models run next to the data.** OML4Py in-DB scoring (fallback: train in Python and write scores
    into tables), so scores are queryable by SQL, APEX and Select AI.
-4. **Generative AI only reads.** OCI GenAI turns Swahili replies into JSON; every outgoing message is
-   a vetted Swahili/English template with slots. AI never writes advice.
+4. **Generative AI only reads.** OCI GenAI turns replies into JSON. Replies and outgoing messages are in
+   Swahili or English, chosen by the user. Every outgoing message is a vetted per-language template
+   (`ALERT_TEMPLATE`, selected by `preferred_lang`) with slots. AI never writes advice.
 5. **Honest alerts.** Calibrated probability → **Act / Watch / Abstain**; cooldowns and caps; public scorecard.
 6. **Leakage-safe replays.** Every feature row has `feature_date` and `available_date`; replays read
    only `available_date <= :t`.
@@ -25,7 +26,7 @@
 |---|---|---|---|---|---|
 | M1 | Ingestion pipeline | Python, Earth Engine API, Copernicus EWDS, OCI Object Storage | **Trevor** | GEE, GloFAS, files | `WARD_FEATURES_DAILY`, `FORECASTS`, `WARDS` |
 | M2 | Models & calibration | pandas, scikit-learn, XGBoost, OML4Py, SQL rules | **Trevor** (+ Chris for loading) | features | `RISK_SCORES` |
-| M3 | Alert engine | PL/SQL (+ Python) | **Dennis** (wiring), Chris (tables) | `RISK_SCORES`, `ALERT_TYPES`, `SUBSCRIBERS` | `ALERTS`, `MESSAGES` (queued) |
+| M3 | Alert engine | PL/SQL (+ Python) | **Dennis** (wiring), Chris (tables) | `RISK_SCORES`, `ALERT_TYPES`, `ALERT_TEMPLATE`, `SUBSCRIBERS` | `ALERTS`, `MESSAGES` (queued) |
 | M4 | SMS gateway | Wasiliana REST (API key + sender ID) + Django/DRF **or** ORDS. Optional client: `pytek-wasiliana` | **Dennis** | Wasiliana SMS API, delivery reports | `MESSAGES`, `SUBSCRIBERS` (STOP) |
 | M4b | USSD menus | Wasiliana callback → `ussd/` | **Louisa** | Wasiliana session POST; backend `/ngao/v1/ussd/*` | `USSD_SESSIONS`; registration and reports via Dennis |
 | M5 | Reply reader | OCI Generative AI (Cohere Command A) | **Dennis** | inbound `MESSAGES` | `REPORTS` (or review queue) |
@@ -71,7 +72,7 @@ flowchart LR
     direction TB
     subgraph ADB["Autonomous Database · schema NGAO"]
       direction TB
-      T1[("Reference<br/>WARDS · COLLECTION_POINTS · DRYERS<br/>ALERT_TYPES · APP_USERS")]
+      T1[("Reference<br/>WARDS · COLLECTION_POINTS · DRYERS<br/>ALERT_TYPES · ALERT_TEMPLATE · APP_USERS")]
       T2[("Time series<br/>WARD_FEATURES_DAILY · FORECASTS")]
       T3[("Decisions<br/>RISK_SCORES · ALERTS · ROUTES · BOOKINGS")]
       T4[("Conversations<br/>SUBSCRIBERS · USSD_SESSIONS<br/>MESSAGES · REPORTS")]
@@ -181,6 +182,12 @@ Decisions: **Act** = calibrated prob ≥ threshold and inputs agree → SMS + da
 **Watch** = rising but below threshold → officers only. **Abstain** = GFS/ECMWF disagree, inputs
 missing, or conformal set has both outcomes → officers, with reason.
 
+Each subscriber stores `preferred_lang` (`sw` or `en`): Swahili or English, chosen by the user
+(default `sw`). The alert engine renders the Act SMS from `ALERT_TEMPLATE`, one body per
+`(hazard, severity, lang)`, using `lang` = `preferred_lang`. A later SMS of `LUGHA` or `LANG`
+followed by `SW` or `EN` switches `preferred_lang` and sends a confirmation in the new language.
+USSD changes the same column from the main-menu item **Lugha / Language**.
+
 ## 6. Sequence diagrams
 
 ### 6.1 Farmer USSD registration → morning SMS alert
@@ -196,23 +203,29 @@ sequenceDiagram
   participant SCH as DBMS_SCHEDULER / Demo controls
   participant ENG as PKG_ALERT_ENGINE
 
-  F->>WA: Dial USSD code
+  F->>WA: Dial USSD code (new number, first session)
   WA->>US: POST session to callback URL
-  US-->>WA: CON Karibu Ngao 1.Jiandikishe 2.Ripoti 3.Hali 4.Lugha
-  F->>WA: 1, then role, county, ward, Swahili, consent
+  US-->>WA: CON Chagua lugha / Choose language, 1. Kiswahili, 2. English
+  F->>WA: 1 or 2
+  US->>BE: POST /ngao/v1/ussd/language
+  BE->>DB: set SUBSCRIBERS.preferred_lang to sw or en
+  US-->>WA: CON main menu in Swahili or English, chosen by the user (includes Lugha / Language)
+  F->>WA: 1, then role, county, ward, consent
   WA->>US: POST session (text so far)
   US->>BE: POST /ngao/v1/ussd/register
-  BE->>DB: MERGE SUBSCRIBERS (phone, ward, role=farmer, lang=sw, consent_at)
+  BE->>DB: MERGE SUBSCRIBERS (phone, ward, role=farmer, preferred_lang, consent_at)
   US->>DB: UPDATE USSD_SESSIONS
-  US-->>WA: END Asante! Umesajiliwa.
+  US-->>WA: END confirmation in Swahili or English, chosen by the user
+  Note over F,BE: Later, menu item Lugha / Language, or SMS LUGHA or LANG followed by SW or EN, updates preferred_lang and confirms in the new language
   Note over SCH,DB: 05:00 pull data · ~05:30 score (or "Run morning scoring")
   SCH->>DB: score wards → RISK_SCORES (A1 prob 0.75, decision=ACT)
   SCH->>ENG: run_alerts(today) at 06:00 (or "Send alerts")
-  ENG->>DB: match subscribers by ward+role, apply cooldown & weekly cap
+  ENG->>DB: match subscribers by ward+role, apply cooldown and weekly cap
+  ENG->>DB: render ALERT_TEMPLATE.body where lang = preferred_lang
   ENG->>DB: INSERT ALERTS + MESSAGES(direction=OUT, status=QUEUED)
   BE->>DB: poll / dequeue QUEUED messages
   BE->>WA: Wasiliana SMS REST (API key, sender ID, to, message)
-  WA-->>F: SMS "MvuaSmart: Siku 3 za jua ... (uhakika 75%)"
+  WA-->>F: SMS in Swahili or English, chosen by the user
   WA->>BE: delivery report (confirm field names)
   BE->>DB: UPDATE MESSAGES status=DELIVERED
 ```
@@ -248,7 +261,7 @@ sequenceDiagram
   AP->>DB: UPDATE REPORTS SET review_status, reviewed_by
 ```
 
-Fallback if Swahili parsing is weak (brief risk): keyword + number matching, plus structured USSD
+Fallback if parsing replies in Swahili or English, chosen by the user, is weak (brief risk): keyword + number matching, plus structured USSD
 reports (menu 2) which skip the AI entirely.
 
 ### 6.3 Dryer booking / routing (18:00)
@@ -381,6 +394,13 @@ erDiagram
     varchar template_sw
     varchar template_en
   }
+  ALERT_TEMPLATE {
+    number template_id PK
+    varchar hazard
+    varchar severity
+    char lang "sw en"
+    varchar body
+  }
   RISK_SCORES {
     number score_id PK
     number ward_id FK
@@ -399,6 +419,7 @@ erDiagram
     number ward_id FK
     varchar role "farmer herder both health_promoter"
     varchar language
+    char preferred_lang "sw en"
     timestamp consent_at
     varchar status
   }
@@ -526,13 +547,13 @@ erDiagram
 ```
 
 **[Assumption]** `FARMS`, `HERDS`, `ROUTE_STOPS`, `BOOKINGS`, `GRAZING_OPTIONS`, `APP_USERS`,
-`ASK_NGAO_LOG`, `USSD_SESSIONS`, `FORECASTS` and `ALERT_TYPES` refine the brief's table list
+`ASK_NGAO_LOG`, `USSD_SESSIONS`, `FORECASTS`, `ALERT_TYPES` and `ALERT_TEMPLATE` refine the brief's table list
 (WARDS, WARD_FEATURES_DAILY, RISK_SCORES, SUBSCRIBERS, ALERTS, REPLIES/REPORTS, DRYERS,
 COLLECTION_POINTS, ROUTES, OUTCOMES). The brief's `REPLIES` = inbound rows in `MESSAGES`.
 
 ## 8. Security & data protection
 
-- Store only phone, ward, role, language. **No GPS.** Consent at USSD registration; `STOP` unsubscribes.
+- Store only phone, ward, role, and language preference (`preferred_lang`: Swahili or English, chosen by the user). **No GPS.** Consent at USSD registration; `STOP` unsubscribes.
 - Health reports appear **aggregated by ward**, never by person (views enforce this).
 - Kenya Data Protection Act 2019: register with ODPC before any real deployment.
 - Secrets (Wasiliana API key, OCI keys) in `.env` / OCI Vault, never in git.

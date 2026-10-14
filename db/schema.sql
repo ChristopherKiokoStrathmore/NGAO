@@ -25,6 +25,16 @@ CREATE TABLE alert_types (
   template_en     VARCHAR2(480)
 );
 
+-- Per-language alert copy. The send path renders body for the subscriber's preferred_lang.
+CREATE TABLE alert_template (
+  template_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  hazard      VARCHAR2(30) NOT NULL,
+  severity    VARCHAR2(16) NOT NULL,
+  lang        CHAR(2) NOT NULL CHECK (lang IN ('sw','en')),
+  body        VARCHAR2(160) NOT NULL,
+  CONSTRAINT uq_alert_template UNIQUE (hazard, severity, lang)
+);
+
 CREATE TABLE app_users (
   user_id   NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   username  VARCHAR2(100) UNIQUE NOT NULL,
@@ -67,7 +77,7 @@ CREATE TABLE risk_scores (
   alert_type     VARCHAR2(3) NOT NULL REFERENCES alert_types,
   raw_score      NUMBER,
   probability    NUMBER(5,4),                       -- calibrated 0..1
-  confidence_pct NUMBER(3),                         -- shown in SMS ("uhakika 75%")
+  confidence_pct NUMBER(3),                         -- shown in the SMS, in Swahili or English, chosen by the user
   decision       VARCHAR2(7) NOT NULL CHECK (decision IN ('ACT','WATCH','ABSTAIN')),
   abstain_reason VARCHAR2(200),
   model_version  VARCHAR2(60),
@@ -79,10 +89,11 @@ CREATE TABLE risk_scores (
 -- ===== People & conversations =====
 CREATE TABLE subscribers (
   subscriber_id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-  phone         VARCHAR2(16) UNIQUE NOT NULL,       -- E.164
-  ward_id       NUMBER REFERENCES wards,
-  role          VARCHAR2(16) NOT NULL CHECK (role IN ('farmer','herder','both','health_promoter','operator','committee')),
-  language      VARCHAR2(2) DEFAULT 'sw' CHECK (language IN ('sw','en')),
+  phone          VARCHAR2(16) UNIQUE NOT NULL,       -- E.164
+  ward_id        NUMBER REFERENCES wards,
+  role           VARCHAR2(16) CHECK (role IN ('farmer','herder','both','health_promoter','operator','committee')), -- null until registration; language choice may insert first
+  language       VARCHAR2(2) DEFAULT 'sw' CHECK (language IN ('sw','en')),
+  preferred_lang CHAR(2) DEFAULT 'sw' NOT NULL CHECK (preferred_lang IN ('sw','en')), -- sw or en, chosen by the user
   consent_at    TIMESTAMP WITH TIME ZONE,
   status        VARCHAR2(10) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE','STOPPED')),
   is_demo       CHAR(1) DEFAULT 'N'
