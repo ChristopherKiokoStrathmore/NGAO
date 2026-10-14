@@ -1,4 +1,6 @@
-# frontend/ (role B · Chris · branch `frontend-chris`)
+# frontend/ (Chris · branch `frontend-chris`)
+
+Owns the **APEX dashboard + PWA**.
 
 The dashboard is an **Oracle APEX** app on the shared Autonomous Database, made installable on phones with APEX's built-in **PWA** setting. No React/Next.js (decision recorded in root README).
 
